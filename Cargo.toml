@@ -1,0 +1,7 @@
+[package]
+name = "httpserver"
+version = "0.1.0"
+authors = ["Abdou Seck <aseck@mit.edu>"]
+edition = "2018"
+
+[dependencies]
