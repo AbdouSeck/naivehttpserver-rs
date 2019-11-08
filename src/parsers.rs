@@ -1,7 +1,9 @@
 use std::collections::HashMap;
-///! This module provides functions to parse HTTP requests.
-///! For now, the only public function provided is `parse_request` which
-///! takes the string value of a request, consumed from the stream.
+use std::fs;
+use std::io::prelude::*;
+use std::net::TcpStream;
+use std::thread;
+use std::time::Duration;
 
 fn parse_method(line: &str) -> HashMap<String, String> {
     ["method", "endpoint", "http"]
@@ -9,6 +11,74 @@ fn parse_method(line: &str) -> HashMap<String, String> {
         .map(|c| String::from(*c))
         .zip(line.split(" ").map(|c| String::from(c)))
         .collect()
+}
+
+/// Handle incoming TCP/IP requests by parsing the stream and consuming the
+/// header data.
+pub fn handle_stream(mut stream: TcpStream) {
+    let mut buffer = [0; 512];
+    stream.read(&mut buffer).unwrap();
+    let contents = String::from_utf8_lossy(&buffer[..]);
+    println!("Request: {}", contents);
+    let request = parse_request(&contents);
+    let (status, html) = if is_valid(&request) {
+        if is_get(&request) || is_post(&request) {
+            if is_sleep(&request) {
+                thread::sleep(Duration::from_millis(5000));
+                (
+                    "HTTP/1.1 200 OK\r\n\r\n",
+                    fs::read_to_string("html/sleep.html").unwrap(),
+                )
+            } else {
+                (
+                    "HTTP/1.1 200 OK\r\n\r\n",
+                    fs::read_to_string("html/hello.html").unwrap(),
+                )
+            }
+        } else {
+            (
+                "HTTP/1.1 405 Method Not Allowed\r\n\r\n",
+                fs::read_to_string("html/405.html").unwrap(),
+            )
+        }
+    } else {
+        (
+            "HTTP/1.1 404 Not Found\r\n\r\n",
+            fs::read_to_string("html/404.html").unwrap(),
+        )
+    };
+    let info = list_info(&request);
+    let response = format!("{}{}", status, html.replace("{{}}", &info));
+    stream.write(response.as_bytes()).unwrap();
+    stream.flush().unwrap();
+    println!("Response: {}", status);
+    println!("Body: {}", html);
+}
+
+fn list_info(req: &HashMap<String, String>) -> String {
+    let v: Vec<String> = req
+        .iter()
+        .map(|tpl| format!("<li><strong>{}</strong>: {}</li>", tpl.0, tpl.1))
+        .collect();
+    v.join("\n")
+}
+
+fn is_get(req: &HashMap<String, String>) -> bool {
+    req.get("method").unwrap().contains("GET")
+}
+
+fn is_post(req: &HashMap<String, String>) -> bool {
+    req.get("method").unwrap().contains("POST")
+}
+
+fn is_valid(req: &HashMap<String, String>) -> bool {
+    let endpoint = req.get("endpoint").unwrap();
+    endpoint == "/" || endpoint.contains("/sleep")
+}
+
+fn is_sleep(req: &HashMap<String, String>) -> bool {
+    let endpoint = req.get("endpoint").unwrap();
+    endpoint.contains("/sleep") || endpoint.contains("/sleep/")
 }
 
 /// `parse_request` parses the string that is returned from consuming the TCP stream associated with the HTTP request
@@ -21,10 +91,12 @@ pub fn parse_request(req: &str) -> HashMap<String, String> {
             }
         } else {
             let mut chunks = line.split(": ");
-            out.insert(
-                chunks.nth(0).unwrap_or("").to_lowercase(),
-                String::from(chunks.nth(0).unwrap_or("")),
-            );
+            let key = chunks.nth(0).unwrap_or("").trim().to_lowercase();
+            let value = chunks.nth(0).unwrap_or("").trim();
+            if key.len() == 0 || value.len() == 0 {
+                continue;
+            }
+            out.insert(key, value.into());
         }
     }
     out
@@ -32,8 +104,8 @@ pub fn parse_request(req: &str) -> HashMap<String, String> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::collections::HashMap;
-    use super::parse_request;
 
     #[test]
     fn test_empty_req() {
@@ -52,7 +124,9 @@ Cookie: PGADMIN_KEY=545c5f7d-bd15-44bf-8d8c-008ca33e5a61; PGADMIN_LANGUAGE=en
 Upgrade-Insecure-Requests: 1
 Cache-Control: max-age=0";
         let parsed = parse_request(r);
-        assert!(parsed.get("endpoint").unwrap() == "/sleep/" && parsed.get("method").unwrap() == "GET");
+        assert!(
+            parsed.get("endpoint").unwrap() == "/sleep/" && parsed.get("method").unwrap() == "GET"
+        );
     }
     #[test]
     fn test_get_index_req() {
@@ -69,4 +143,19 @@ Cache-Control: max-age=0";
         let parsed = parse_request(r);
         assert!(parsed.get("endpoint").unwrap() == "/" && parsed.get("method").unwrap() == "GET");
     }
+    #[test]
+    fn is_not_get_request() {
+        let is_it = is_get(&HashMap::new());
+        assert!(!is_it);
+    }
+    #[test]
+    fn is_get_request() {
+        let req: HashMap<_, _> = [("method", "GET")]
+            .iter()
+            .map(|t| (String::from(t.0), (String::from(t.1))))
+            .collect();
+        let is_it = is_get(&req);
+        assert!(is_it);
+    }
+
 }
