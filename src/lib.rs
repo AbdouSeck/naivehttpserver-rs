@@ -7,6 +7,12 @@ use std::fmt;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
+/// This module provides functions to parse HTTP requests.
+/// For now, the only public function provided is `parse_request` which
+/// takes the string value of a request, consumed from the stream.
+#[path = "parsers.rs"]
+pub mod parsers;
+
 /// A trait to allow us to pass a Box type to a thread and have that thread grab the
 /// corresponding value out of the Box.
 trait FnBox {
@@ -21,7 +27,7 @@ impl<F: FnOnce()> FnBox for F {
 }
 
 /// Alias the stretched out type names
-type Job = Box<FnBox + Send + 'static>;
+type Job = Box<dyn FnBox + Send + 'static>;
 type AMRMessage = Arc<Mutex<mpsc::Receiver<Message>>>;
 
 /// Make a Message enum to send either a Job or a Terminate message
