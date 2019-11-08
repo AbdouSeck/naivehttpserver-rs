@@ -15,9 +15,9 @@ fn main() {
     };
     println!("Serving your application at http://{}", url);
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        pool.execute(|| {
-            parsers::handle_stream(stream);
+        let mut stream = stream.unwrap();
+        pool.execute(move || {
+            parsers::handle_stream(&mut stream);
         });
     }
 }

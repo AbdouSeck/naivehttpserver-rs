@@ -15,7 +15,7 @@ fn parse_method(line: &str) -> HashMap<String, String> {
 
 /// Handle incoming TCP/IP requests by parsing the stream and consuming the
 /// header data.
-pub fn handle_stream(mut stream: TcpStream) {
+pub fn handle_stream(stream: &mut TcpStream) {
     let mut buffer = [0; 512];
     stream.read(&mut buffer).unwrap();
     let contents = String::from_utf8_lossy(&buffer[..]);
@@ -64,20 +64,24 @@ fn list_info(req: &HashMap<String, String>) -> String {
 }
 
 fn is_get(req: &HashMap<String, String>) -> bool {
-    req.get("method").unwrap().contains("GET")
+    let s = String::new();
+    req.get("method").unwrap_or(&s).contains("GET")
 }
 
 fn is_post(req: &HashMap<String, String>) -> bool {
-    req.get("method").unwrap().contains("POST")
+    let s = String::new();
+    req.get("method").unwrap_or(&s).contains("POST")
 }
 
 fn is_valid(req: &HashMap<String, String>) -> bool {
-    let endpoint = req.get("endpoint").unwrap();
+    let s = String::new();
+    let endpoint = req.get("endpoint").unwrap_or(&s);
     endpoint == "/" || endpoint.contains("/sleep")
 }
 
 fn is_sleep(req: &HashMap<String, String>) -> bool {
-    let endpoint = req.get("endpoint").unwrap();
+    let s = String::new();
+    let endpoint = req.get("endpoint").unwrap_or(&s);
     endpoint.contains("/sleep") || endpoint.contains("/sleep/")
 }
 
