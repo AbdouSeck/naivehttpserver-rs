@@ -2,9 +2,24 @@
 """
 Hit the target endpoints with GET requests
 """
+import sys
 from argparse import ArgumentParser, RawDescriptionHelpFormatter as RDHF
 from urllib.request import urlopen
 from threading import Thread
+
+
+def read_url(url):
+    """
+    Get request targeting the provided endpoint
+
+    :param url: A URL to submit a GET request to
+    :return: None
+    """
+    try:
+        urlopen(url)
+    except:
+        excp = sys.exc_info()[1]
+        print("Failed to open {u}: {e}".format(u=url, e=excp))
 
 
 def get_it(base_url, n=100):
@@ -20,9 +35,9 @@ def get_it(base_url, n=100):
     threads = []
     for i in range(n):
         if i % 2 == 0:
-            t = Thread(target=urlopen, args=("{}/sleep".format(base_url),))
+            t = Thread(target=read_url, args=("{}/sleep".format(base_url),))
         else:
-            t = Thread(target=urlopen, args=(base_url,))
+            t = Thread(target=read_url, args=(base_url,))
         t.start()
         threads.append(t)
     return threads
@@ -42,5 +57,5 @@ if __name__ == '__main__':
         type=int
     )
     args = parser.parse_args()
-    [t.join() for t in get_it(args.url, args.number)]
+    [tr.join() for tr in get_it(args.url, args.number)]
 

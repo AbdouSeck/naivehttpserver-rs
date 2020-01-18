@@ -5,7 +5,10 @@ use httpserver::{parsers, ThreadPool};
 
 fn main() {
     let url = "127.0.0.1:7878";
-    let listener = TcpListener::bind(url).unwrap();
+    let listener = TcpListener::bind(url).unwrap_or_else(|e| {
+        eprintln!("Error: {e}", e = e);
+        process::exit(1);
+    });
     let pool = match ThreadPool::new(5) {
         Ok(p) => p,
         Err(e) => {
