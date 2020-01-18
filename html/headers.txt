@@ -1,0 +1,5 @@
+Access-Control-Allow-Origin: *
+Connection: keep-alive
+Content-Type: text/html; charset=utf-8
+Content-Encoding: compress
+Server: VeryNaiveServer
