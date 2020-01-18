@@ -17,7 +17,7 @@ fn main() {
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
         pool.execute(move || {
-            parsers::handle_stream(&mut stream);
+            parsers::handle_client(&mut stream);
         });
     }
 }
