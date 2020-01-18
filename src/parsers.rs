@@ -15,44 +15,55 @@ fn parse_method(line: &str) -> HashMap<String, String> {
 
 /// Handle incoming TCP/IP requests by parsing the stream and consuming the
 /// header data.
-pub fn handle_stream(stream: &mut TcpStream) {
+pub fn handle_client(stream: &mut TcpStream) {
     let mut buffer = [0; 512];
     stream.read(&mut buffer).unwrap();
     let contents = String::from_utf8_lossy(&buffer[..]);
     println!("Request: {}", contents);
     let request = parse_request(&contents);
-    let (status, html) = if is_valid(&request) {
+    let (status, headers, body) = if is_valid(&request) {
         if is_get(&request) || is_post(&request) {
             if is_sleep(&request) {
                 thread::sleep(Duration::from_millis(5000));
                 (
-                    "HTTP/1.1 200 OK\r\n\r\n",
+                    "HTTP/1.1 200 OK",
+                    fs::read_to_string("html/headers.txt").unwrap(),
                     fs::read_to_string("html/sleep.html").unwrap(),
                 )
             } else {
                 (
-                    "HTTP/1.1 200 OK\r\n\r\n",
+                    "HTTP/1.1 200 OK",
+                    fs::read_to_string("html/headers.txt").unwrap(),
                     fs::read_to_string("html/hello.html").unwrap(),
                 )
             }
         } else {
             (
-                "HTTP/1.1 405 Method Not Allowed\r\n\r\n",
+                "HTTP/1.1 405 Method Not Allowed",
+                fs::read_to_string("html/headers.txt").unwrap(),
                 fs::read_to_string("html/405.html").unwrap(),
             )
         }
     } else {
         (
-            "HTTP/1.1 404 Not Found\r\n\r\n",
+            "HTTP/1.1 404 Not Found",
+            fs::read_to_string("html/headers.txt").unwrap(),
             fs::read_to_string("html/404.html").unwrap(),
         )
     };
     let info = list_info(&request);
-    let response = format!("{}{}", status, html.replace("{{}}", &info));
+    let body = body.replace("{{}}", &info);
+    let response = format!(
+        "{}\r\n{}\r\n\r\n{}",
+        status,
+        headers,
+        body
+    );
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
     println!("Response: {}", status);
-    println!("Body: {}", html);
+    println!("Headers: {}", headers);
+    println!("Body: {}", body);
 }
 
 fn list_info(req: &HashMap<String, String>) -> String {
